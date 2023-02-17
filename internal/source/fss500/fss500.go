@@ -55,7 +55,7 @@ func (f *FSS500SourceFinder) findDevice(tr trace.Trace, ingesterForDefault func(
 	{
 		dev, err := usb.FindDevice()
 		if err != nil {
-			mayqtt.Publishf("powersave")
+			// mayqtt.Publishf("powersave")
 			return fmt.Errorf("device not found: %v", err)
 		}
 		l.dev = dev

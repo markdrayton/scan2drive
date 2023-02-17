@@ -17,6 +17,7 @@
 package airscan
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -112,7 +113,12 @@ func scan1(tr trace.Trace, cl *airscan.Client, ingester *scaningest.Ingester) (s
 	settings := preset.GrayscaleA4ADF()
 	// For the ADF, the ScanSnap is better.
 	// We use the Brother for its flatbed scan only.
-	settings.InputSource = "Platen"
+	if status.ADFState == "ScannerAdfEmpty" {
+		settings.InputSource = "Platen"
+		settings.Duplex = false
+	}
+	log.Printf("ADF status %s; using input source %s, duplex %t",
+		status.ADFState, settings.InputSource, settings.Duplex)
 	scan, err := cl.Scan(settings)
 	if err != nil {
 		return "", err
@@ -205,10 +211,13 @@ func SourceFinder() scan2drive.ScanSourceFinder {
 
 		sourceFinder.mu.Lock()
 		defer sourceFinder.mu.Unlock()
+		cl := airscan.NewClientForService(&srv)
+		transport := cl.HTTPClient.(*http.Client).Transport.(*http.Transport)
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		// TODO: use srv.Text["ty"] if non-empty once
 		// https://github.com/brutella/dnssd/pull/19 was merged
 		sourceFinder.sources[srv.Host] = &AirscanSource{
-			client:  airscan.NewClientForService(&srv),
+			client:  cl,
 			name:    unescapedName,
 			host:    srv.Host,
 			iconURL: srv.Text["representation"],
