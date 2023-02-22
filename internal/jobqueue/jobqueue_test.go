@@ -29,7 +29,7 @@ func TestJobQueue(t *testing.T) {
 		}
 
 		b := []byte("hello world")
-		job, err := defaultQueue.AddJob([]*page.Any{page.JPEGPageFromBytes(b)})
+		job, err := defaultQueue.AddJob([]*page.Any{page.JPEGPageFromBytes(b)}, "en")
 		if err != nil {
 			t.Fatal(err)
 		}

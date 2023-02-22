@@ -16,6 +16,7 @@
 package drivesink
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/stapelberg/scan2drive/internal/jobqueue"
+	"github.com/stapelberg/scan2drive/internal/translate"
 	"github.com/stapelberg/scan2drive/internal/user"
 	"golang.org/x/net/trace"
 	"golang.org/x/sync/errgroup"
@@ -152,15 +154,63 @@ func UploadPDF(ctx context.Context, u *user.Account, j *jobqueue.Job) error {
 		defer rd.Close()
 
 		r, err := driveSrv.Files.Create(&drive.File{
-			Name:    j.Id() + ".pdf",
+			Name:    j.Id() + "-" + j.Language + ".pdf",
 			Parents: []string{parentId},
-		}).Media(rd, googleapi.ContentType("application/pdf")).OcrLanguage("de").Do()
+		}).Media(rd, googleapi.ContentType("application/pdf")).OcrLanguage(j.Language).Do()
 		if err != nil {
 			return err
 		}
 		tr.LazyPrintf("Uploaded file to Google Drive as id %q", r.Id)
 
-		if err := j.WritePDFDriveID(r.Id); err != nil {
+		if err := j.WritePDFDriveID(r.Id, j.Language); err != nil {
+			return err
+		}
+
+		break
+	}
+	return nil
+}
+
+func UploadTranslation(ctx context.Context, u *user.Account, j *jobqueue.Job) error {
+	tr, _ := trace.FromContext(ctx)
+
+	// TODO: make OcrLanguage configurable
+	driveSrv := u.Drive
+	parentId, err := getCurrentParentDir(u)
+	if err != nil {
+		return err
+	}
+
+	filenames, err := j.Filenames()
+	if err != nil {
+		return err
+	}
+	for _, filename := range filenames {
+		if filepath.Base(filename) != "scan.pdf" {
+			continue
+		}
+
+		rd, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		defer rd.Close()
+
+		b, err := translate.TranslatePDF(ctx, u, j, rd)
+		if err != nil {
+			return err
+		}
+
+		r, err := driveSrv.Files.Create(&drive.File{
+			Name:    j.Id() + "-" + u.Language + ".pdf",
+			Parents: []string{parentId},
+		}).Media(bytes.NewReader(b), googleapi.ContentType("application/pdf")).OcrLanguage(u.Language).Do()
+		if err != nil {
+			return err
+		}
+		tr.LazyPrintf("Uploaded translation to Google Drive as id %q", r.Id)
+
+		if err := j.WritePDFDriveID(r.Id, u.Language); err != nil {
 			return err
 		}
 

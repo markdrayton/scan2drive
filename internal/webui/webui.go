@@ -112,7 +112,7 @@ type Config struct {
 	ScansDir         string
 	StateDir         string
 	Finders          []scan2drive.ScanSourceFinder
-	IngesterFor      func(uid string) *scaningest.Ingester
+	IngesterFor      func(uid, language string) *scaningest.Ingester
 	AllowedUsers     map[string]bool
 
 	// ListenURLs contains the base URLs of all configured listeners,
@@ -192,7 +192,7 @@ type UI struct {
 	stateDir     string
 	oauthConfig  *oauth2.Config
 	finders      []scan2drive.ScanSourceFinder
-	ingesterFor  func(uid string) *scaningest.Ingester
+	ingesterFor  func(uid, language string) *scaningest.Ingester
 	allowedUsers map[string]bool
 }
 

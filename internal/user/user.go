@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	translate "cloud.google.com/go/translate/apiv3"
 	"github.com/stapelberg/scan2drive"
 	"github.com/stapelberg/scan2drive/internal/jobqueue"
 	"golang.org/x/oauth2"
@@ -39,10 +40,12 @@ type Account struct {
 
 	// old attributes below:
 
-	Token   *oauth2.Token
-	folder  scan2drive.DriveFolder
-	Drive   *drive.Service
-	Default bool
+	Token     *oauth2.Token
+	folder    scan2drive.DriveFolder
+	Drive     *drive.Service
+	Translate *translate.TranslationClient
+	Language  string
+	Default   bool
 
 	Name    string // full name, e.g. “Michael Stapelberg”
 	Picture string // profile picture URL
@@ -90,6 +93,7 @@ func LoadFromDir(dir string) (*Account, error) {
 			account.Default = true
 		}
 	}
+	account.Language = "en"
 
 	return &account, nil
 }
@@ -184,6 +188,11 @@ func (l *Locked) UpdateFromDir(stateDir, scansDir string, oauthConfig *oauth2.Co
 		if err != nil {
 			return fmt.Errorf("getting userinfo for %q: %v", sub, err)
 		}
+		tsrv, err := translate.NewTranslationClient(ctx, option.WithCredentialsFile("/perm/gac.json"))
+		if err != nil {
+			return fmt.Errorf("creating translate client for %q: %v", sub, err)
+		}
+		account.Translate = tsrv
 		account.Name = o.Name
 		account.Picture = o.Picture
 		account.Sub = sub

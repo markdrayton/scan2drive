@@ -25,6 +25,7 @@ type ScanRequest struct {
 	User     string `json:"user"`
 	Source   string `json:"source"`
 	SourceId string `json:"source_id"`
+	Language string `json:"language"`
 }
 
 type DriveFolder struct {

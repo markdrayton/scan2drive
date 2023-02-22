@@ -56,6 +56,7 @@ type CompletionMarkers struct {
 	Converted         bool
 	UploadedPDF       bool
 	Renamed           bool
+	Translated        bool
 }
 
 type Job struct {
@@ -64,18 +65,23 @@ type Job struct {
 	state      State
 	curpage    int
 	pages      []*page.Any
+	Language   string
 	Markers    CompletionMarkers
 	NewName    string
 	PDFDriveId string
 }
 
-func (q *Queue) AddJob(pages []*page.Any) (*Job, error) {
+func (q *Queue) AddJob(pages []*page.Any, language string) (*Job, error) {
 	id := time.Now().Format(time.RFC3339)
 	dir := filepath.Join(q.Dir, id)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	job := &Job{id: id, dir: dir}
+	fn := filepath.Join(dir, "language")
+	if err := os.WriteFile(fn, []byte(language), 0600); err != nil {
+		return nil, err
+	}
+	job := &Job{id: id, dir: dir, Language: language}
 	for _, page := range pages {
 		if err := job.addPage(page); err != nil {
 			return nil, err
@@ -161,6 +167,8 @@ func (j *Job) readStateFromDir() error {
 			j.Markers.UploadedPDF = true
 		} else if entry.Name() == "COMPLETE.rename" {
 			j.Markers.Renamed = true
+		} else if entry.Name() == "COMPLETE.translate" {
+			j.Markers.Translated = true
 		} else if entry.Name() == "rename" {
 			content, err := os.ReadFile(filepath.Join(j.dir, "rename"))
 			if err != nil {
@@ -173,6 +181,12 @@ func (j *Job) readStateFromDir() error {
 				return err
 			}
 			j.PDFDriveId = string(content)
+		} else if entry.Name() == "language" {
+			content, err := os.ReadFile(filepath.Join(j.dir, "language"))
+			if err != nil {
+				return err
+			}
+			j.Language = string(content)
 		}
 	}
 	return nil
@@ -240,8 +254,8 @@ func (j *Job) commit() error {
 	return nil
 }
 
-func (j *Job) WritePDFDriveID(driveId string) error {
-	fn := filepath.Join(j.dir, "pdf.drive_id")
+func (j *Job) WritePDFDriveID(driveId, language string) error {
+	fn := filepath.Join(j.dir, "pdf-"+language+".drive_id")
 	if err := os.WriteFile(fn, []byte(driveId), 0600); err != nil {
 		return err
 	}

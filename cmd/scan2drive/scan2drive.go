@@ -137,6 +137,21 @@ func processScan(ctx context.Context, u *user.Account, j *jobqueue.Job) (err err
 		tr.LazyPrintf("job markers now: %+v", j.Markers)
 	}
 
+	if !j.Markers.Translated {
+		if j.Language == "en" {
+			tr.LazyPrintf("language is en; no translation needed")
+		} else {
+			mayqtt.Publishf("translating PDF")
+			if err := drivesink.UploadTranslation(ctx, u, j); err != nil {
+				return fmt.Errorf("Uploading translation: %v", err)
+			}
+		}
+		if err := j.CommitMarker("translate"); err != nil {
+			return err
+		}
+		tr.LazyPrintf("job markers now: %+v", j.Markers)
+	}
+
 	mayqtt.Publishf("scanner ready")
 
 	// newName, err := ioutil.ReadFile(filepath.Join(*scansDir, sub, dir, "rename"))
@@ -236,7 +251,7 @@ func logic() error {
 
 	lockedUsers := user.NewLocked()
 
-	ingesterFor := func(uid string) *scaningest.Ingester {
+	ingesterFor := func(uid, language string) *scaningest.Ingester {
 		user := lockedUsers.User(uid)
 		if user == nil {
 			return nil
@@ -247,7 +262,7 @@ func logic() error {
 				// storage) and let the queue worker take it from here.
 
 				log.Printf("ingest(%d pages)", len(j.Pages))
-				job, err := user.Queue.AddJob(j.Pages)
+				job, err := user.Queue.AddJob(j.Pages, language)
 				if err != nil {
 					return "", err
 				}
@@ -266,11 +281,11 @@ func logic() error {
 		users := lockedUsers.Users()
 		for uid, user := range users {
 			if user.Default {
-				return ingesterFor(uid)
+				return ingesterFor(uid, "en")
 			}
 		}
 		for uid := range users {
-			return ingesterFor(uid)
+			return ingesterFor(uid, "en")
 		}
 		return nil
 	}
@@ -427,7 +442,7 @@ func logic() error {
 		go func() {
 			for scanRequest := range mqttScanRequests {
 				user := lockedUsers.UserByName(scanRequest.User)
-				ingester := ingesterFor(user.Sub)
+				ingester := ingesterFor(user.Sub, scanRequest.Language)
 				if ingester == nil {
 					log.Printf("user %q not found", scanRequest.User)
 					continue

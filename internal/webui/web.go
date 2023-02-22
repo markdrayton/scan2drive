@@ -447,7 +447,7 @@ func (ui *UI) startScanHandler(w http.ResponseWriter, r *http.Request) error {
 			fmt.Errorf("scan source %q not found", srcId))
 	}
 
-	ingester := ui.ingesterFor(sub)
+	ingester := ui.ingesterFor(sub, "en")
 	if ingester == nil {
 		return httperr.Error(
 			http.StatusNotFound,
