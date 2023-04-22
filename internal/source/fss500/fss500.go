@@ -89,7 +89,7 @@ func (f *FSS500SourceFinder) findDevice(tr trace.Trace, ingesterForDefault func(
 			tr.LazyPrintf("scan button pressed, scanning")
 
 			ingester := ingesterForDefault()
-			jobId, err := source.ScanTo(ingester)
+			jobId, err := source.ScanTo(ingester, &scan2drive.ScanRequest{})
 			if err != nil {
 				tr.LazyPrintf("scan failed: %v", err)
 			} else {
@@ -155,7 +155,7 @@ func (f *FSS500Source) CanProcess(r *scan2drive.ScanRequest) error {
 }
 
 // implements scan2drive.ScanSource
-func (f *FSS500Source) ScanTo(ingester *scaningest.Ingester) (string, error) {
+func (f *FSS500Source) ScanTo(ingester *scaningest.Ingester, r *scan2drive.ScanRequest) (string, error) {
 	tr := trace.New("FSS500", "ScanTo")
 	defer tr.Finish()
 	start := time.Now()

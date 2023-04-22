@@ -22,10 +22,14 @@ import (
 
 // A ScanRequest is received via MQTT, HTTP or gRPC.
 type ScanRequest struct {
-	User     string `json:"user"`
-	Source   string `json:"source"`
-	SourceId string `json:"source_id"`
-	Language string `json:"language"`
+	User         string `json:"user"`
+	Source       string `json:"source"`
+	SourceId     string `json:"source_id"`
+	Language     string `json:"language"`
+	ScanSettings struct {
+		InputSource string `json:"input_source"`
+		Duplex      bool   `json:"duplex"`
+	} `json:"scan_settings"`
 }
 
 type DriveFolder struct {
@@ -52,7 +56,7 @@ type ScanSource interface {
 	// the ingester selects the user by virtue of selecting the user’s job
 	// queue in the ingestcallback.
 	// returns the job id
-	ScanTo(*scaningest.Ingester) (string, error)
+	ScanTo(*scaningest.Ingester, *ScanRequest) (string, error)
 }
 
 type ScanSourceMetadata struct {

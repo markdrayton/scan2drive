@@ -71,7 +71,7 @@ func (a *AirscanSource) CanProcess(r *scan2drive.ScanRequest) error {
 }
 
 // implements scan2drive.ScanSource
-func (a *AirscanSource) ScanTo(ingester *scaningest.Ingester) (string, error) {
+func (a *AirscanSource) ScanTo(ingester *scaningest.Ingester, r *scan2drive.ScanRequest) (string, error) {
 	tr := trace.New("AirScan", "ScanTo")
 	defer tr.Finish()
 	start := time.Now()
@@ -82,7 +82,7 @@ func (a *AirscanSource) ScanTo(ingester *scaningest.Ingester) (string, error) {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return scan1(tr, a.client, ingester)
+	return scan1(tr, a.client, ingester, r)
 }
 
 // NOTE: We currently call out to the generic ProcessScan() implementation,
@@ -93,7 +93,7 @@ func (a *AirscanSource) ScanTo(ingester *scaningest.Ingester) (string, error) {
 // We should investigate whether similar speed-ups are required/achievable
 // with the Raspberry Pi 4 and AirScan.
 
-func scan1(tr trace.Trace, cl *airscan.Client, ingester *scaningest.Ingester) (string, error) {
+func scan1(tr trace.Trace, cl *airscan.Client, ingester *scaningest.Ingester, r *scan2drive.ScanRequest) (string, error) {
 	status, err := cl.ScannerStatus()
 	if err != nil {
 		return "", err
@@ -111,14 +111,11 @@ func scan1(tr trace.Trace, cl *airscan.Client, ingester *scaningest.Ingester) (s
 	// grayscale at 300 dpi.
 
 	settings := preset.GrayscaleA4ADF()
-	// For the ADF, the ScanSnap is better.
-	// We use the Brother for its flatbed scan only.
-	if status.ADFState == "ScannerAdfEmpty" {
-		settings.InputSource = "Platen"
-		settings.Duplex = false
+	if r.ScanSettings.InputSource != "" {
+		settings.InputSource = r.ScanSettings.InputSource
 	}
-	log.Printf("ADF status %s; using input source %s, duplex %t",
-		status.ADFState, settings.InputSource, settings.Duplex)
+	settings.Duplex = r.ScanSettings.Duplex
+	log.Printf("%+v", r.ScanSettings)
 	scan, err := cl.Scan(settings)
 	if err != nil {
 		return "", err

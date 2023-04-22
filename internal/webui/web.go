@@ -453,7 +453,7 @@ func (ui *UI) startScanHandler(w http.ResponseWriter, r *http.Request) error {
 			http.StatusNotFound,
 			fmt.Errorf("ingester for user %q not found", sub))
 	}
-	jobId, err := scanSource.ScanTo(ingester)
+	jobId, err := scanSource.ScanTo(ingester, &scan2drive.ScanRequest{})
 	if err != nil {
 		return err
 	}

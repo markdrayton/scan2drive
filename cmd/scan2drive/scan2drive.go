@@ -180,7 +180,7 @@ func dispatchScanRequest(ingester *scaningest.Ingester, finders []scan2drive.Sca
 				continue
 			}
 			tr.LazyPrintf("scanning to source")
-			if _, err := src.ScanTo(ingester); err != nil {
+			if _, err := src.ScanTo(ingester, scanRequest); err != nil {
 				return fmt.Errorf("scan failed: %v", err)
 			}
 			return nil
